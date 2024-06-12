@@ -1,3 +1,4 @@
+import configparser
 import os
 import sys
 import cv2
@@ -24,9 +25,18 @@ logger.setLevel(logging.DEBUG)
 logger.addHandler(console_handler)
 logger.addHandler(file_handler)
 
+# 读取配置文件
+config = configparser.ConfigParser()
+config.read('config.ini', encoding='utf-8')
+
+window_name = config.get('Settings', 'window_name', fallback='Space Armada')
+offset = config.getfloat('Settings', 'offset', fallback=3)
+
+print(window_name, offset)
+
 
 def resource_path(relative_path):
-    """获取资源文件的绝对路径，打包后也适用"""
+    """获取资源文件的绝对路径"""
     try:
         base_path = sys._MEIPASS
     except Exception:
@@ -35,26 +45,28 @@ def resource_path(relative_path):
     return os.path.join(base_path, relative_path)
 
 
-# 确保有一个名为 "Space" 的窗口，并获取其位置和大小
-window = gw.getWindowsWithTitle('Space Armada')
+# 确保有一个游戏的窗口
+window = gw.getWindowsWithTitle(window_name)
 if window:
-    window = window[0]  # 选择第一个窗口
-    # window.resizeTo(1920, 960)
-    # window.moveTo(0, 0)
-    window.maximize()
-    window.activate()  # 将窗口置顶
+    window = window[0]
+    window.maximize()   # 最大化窗口
+    window.activate()   # 将窗口置顶
+    if window_name == 'Space Armada':
+        pyautogui.hotkey('alt', 'enter')
+    else:
+        pyautogui.hotkey('F11')
 else:
     raise Exception("未找到窗口，请检查是否已打开游戏窗口。")
 
 # 加载怪物模板图像
 monster_templates = [cv2.imread(resource_path('novaimgs/lv4_boss.png'), cv2.IMREAD_GRAYSCALE),
-                     cv2.imread(resource_path('novaimgs/lv5_monster.png'), cv2.IMREAD_GRAYSCALE),
-                     cv2.imread(resource_path('novaimgs/lv6_monster.png'), cv2.IMREAD_GRAYSCALE)]
-
+                     cv2.imread(resource_path('novaimgs/lv6_monster.png'), cv2.IMREAD_GRAYSCALE),
+                     cv2.imread(resource_path('novaimgs/lv5_monster.png'), cv2.IMREAD_GRAYSCALE)]
 # 加载残骸图标
 debris_templates = [cv2.imread(resource_path('novaimgs/gather_wreckage.png'), cv2.IMREAD_GRAYSCALE),
                     cv2.imread(resource_path('novaimgs/gather_mineral.png'), cv2.IMREAD_GRAYSCALE)]
-
+# 加载采集图标
+collect_icon = cv2.imread(resource_path('novaimgs/button_collect.png'), cv2.IMREAD_GRAYSCALE)
 # 加载攻击图标
 attack_icon = cv2.imread(resource_path('novaimgs/button_attack.png'), cv2.IMREAD_GRAYSCALE)
 # 加载选择全部图标
@@ -65,20 +77,19 @@ confirm_icon = cv2.imread(resource_path('novaimgs/button_confirm.png'), cv2.IMRE
 space_station_icon = cv2.imread(resource_path('novaimgs/to_station.png'), cv2.IMREAD_GRAYSCALE)
 # 加载星系图标
 star_system_icon = cv2.imread(resource_path('novaimgs/to_galaxy.png'), cv2.IMREAD_GRAYSCALE)
-
-# 加载采集图标
-collect_icon = cv2.imread(resource_path('novaimgs/button_collect.png'), cv2.IMREAD_GRAYSCALE)
 # 加载关闭图标
 close_icon = cv2.imread(resource_path('novaimgs/button_close.png'), cv2.IMREAD_GRAYSCALE)
 # 加载主页图标
 home_icon = cv2.imread(resource_path('novaimgs/button_home.png'), cv2.IMREAD_GRAYSCALE)
-# 加载星系图标
+# 加载星云图标
 galaxy_icon = cv2.imread(resource_path('novaimgs/in_nebula.png'), cv2.IMREAD_GRAYSCALE)
 
 # 禁止点击区
 no_click_zones = [
-    (0, 35, 454, 375),  # 左上角人物、任务区
-    (0, 913, 1024, 1026),  # 下方聊天栏
+    (0, 0, 500, 260),  # 左上角人物
+    (800, 0, 1920, 100),  # 上方资源栏
+    (1300, 100, 1920, 270),  # 右上角活动
+    (0, 1080, 1100, 980),  # 下方聊天栏
 ]
 
 # 获取窗口位置和大小
@@ -86,12 +97,13 @@ window_left, window_top, window_width, window_height = window.left, window.top, 
 
 
 # 根据图片返回屏幕坐标
-def get_coordinate(img, confidence, offset=3):
+def get_coordinate(img, confidence):
     screenshot = pyautogui.screenshot(region=(window_left, window_top, window_width, window_height))
     screenshot = cv2.cvtColor(np.array(screenshot), cv2.COLOR_BGR2GRAY)
     result = cv2.matchTemplate(screenshot, img, cv2.TM_CCOEFF_NORMED)
     min_val, max_val, min_loc, max_loc = cv2.minMaxLoc(result)
     # confidence = 0.65
+    print(f"匹配结果：{max_val}")
     if max_val >= confidence:
         icon_w, icon_h = img.shape[::-1]
         icon_center_x = max_loc[0] + icon_w // 2
@@ -105,7 +117,7 @@ def get_coordinate(img, confidence, offset=3):
 
         for zone in no_click_zones:
             if zone[0] <= screen_x <= zone[2] and zone[1] <= screen_y <= zone[3]:
-                logging.info(f"匹配失败，坐标 [{screen_x}, {screen_y}] 在禁止点击区")
+                logging.info(f"坐标 [{screen_x}, {screen_y}] 在禁止点击区")
                 return None
         return screen_x, screen_y
 
@@ -266,9 +278,12 @@ def zoom_out():
     window_center_x = window_left + window_width // 2
     window_center_y = window_top + window_height // 2
     pyautogui.moveTo(window_center_x, window_center_y)
-    scroll_amount = -500
-    for i in range(30):
-        pyautogui.scroll(scroll_amount)
+    pyautogui.keyDown("ctrl")
+    scroll_amount = -1000
+    pyautogui.scroll(scroll_amount)
+    pyautogui.keyUp("ctrl")
+    # for i in range(30):
+    #     pyautogui.scroll(scroll_amount)
 
 
 # 放大窗口
@@ -276,7 +291,7 @@ def zoom_in():
     window_center_x = window_left + window_width // 2
     window_center_y = window_top + window_height // 2
     pyautogui.moveTo(window_center_x, window_center_y)
-    scroll_amount = 500
+    scroll_amount = 1000
     for i in range(5):
         pyautogui.scroll(scroll_amount)
 
@@ -299,10 +314,11 @@ def reset_process():
 
 if __name__ == '__main__':
     logging.info("开始执行>>>")
+    time.sleep(10)
     try:
         while True:
             time.sleep(3)
-            # reset_process()
+            reset_process()
             attack_process()
             debris_process()
             time.sleep(60)

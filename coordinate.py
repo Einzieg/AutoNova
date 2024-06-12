@@ -11,3 +11,6 @@ right, bottom = pyautogui.position()
 print(f"右下角坐标: ({right}, {bottom})")
 
 print(f"禁止点击区域: 左上角 ({left}, {top}), 右下角 ({right}, {bottom})")
+
+
+
