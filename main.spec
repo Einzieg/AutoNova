@@ -6,7 +6,7 @@ a = Analysis(
     ['main.py'],
     pathex=[],
     binaries=[],
-    datas=[('C:\\Users\\Einzieg\\PycharmProjects\\autonova\\novaimgs', 'novaimgs')],
+    datas=[('novaimgs/.png', 'novaimgs')],
     hiddenimports=['cv2','pygetwindow','pyautogui'],
     hookspath=[],
     hooksconfig={},
