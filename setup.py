@@ -8,14 +8,10 @@ Usage:
 from setuptools import setup
 
 APP = ['main.py']
-DATA_FILES = ["novaimgs/"]
+DATA_FILES = [("novaimgs", ["novaimgs/*.png"])]
 OPTIONS = {"argv_emulation": True,
-           "plist": {
-               "CFBundleName": "AutoNova",  # 应用名
-               "CFBundleDisplayName": "AutoNova",  # 应用显示名
-               "CFBundleVersion": "1.0.0",  # 应用版本号
-               "CFBundleIdentifier": "AutoNova",  # 应用包名、唯一标识
-           }
+           'packages': ['pyautogui', 'pygetwindow', 'numpy', 'cv2'],
+           'includes': ['PyInstaller.hooks.hook-django.template.loaders']
            }
 
 setup(
