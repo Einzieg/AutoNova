@@ -49,8 +49,8 @@ def resource_path(relative_path):
 window = gw.getWindowsWithTitle(window_name)
 if window:
     window = window[0]
-    window.maximize()   # 最大化窗口
-    window.activate()   # 将窗口置顶
+    window.maximize()  # 最大化窗口
+    window.activate()  # 将窗口置顶
     if window_name == 'Space Armada':
         pyautogui.hotkey('alt', 'enter')
     else:
@@ -114,11 +114,6 @@ def get_coordinate(img, confidence):
         screen_x = window_left + icon_center_x + random_offset_x
         screen_y = window_top + icon_center_y + random_offset_y
         logging.info(f"匹配成功，坐标 [{screen_x}, {screen_y}]，随机偏移 [{random_offset_x}, {random_offset_y}]")
-
-        for zone in no_click_zones:
-            if zone[0] <= screen_x <= zone[2] and zone[1] <= screen_y <= zone[3]:
-                logging.info(f"坐标 [{screen_x}, {screen_y}] 在禁止点击区")
-                return None
         return screen_x, screen_y
 
 
@@ -139,6 +134,10 @@ def find_monsters():
     coordinates = find_monster_coordinates()
     if coordinates:
         x, y = coordinates
+        for zone in no_click_zones:
+            if zone[0] <= x <= zone[2] and zone[1] <= y <= zone[3]:
+                logging.info(f"坐标 [{x}, {y}] 在禁止点击区")
+                return None
         pyautogui.mouseDown(x, y)
         time.sleep(0.3)
         pyautogui.mouseUp(x, y)
@@ -199,6 +198,10 @@ def find_debris():
     coordinates = find_debris_coordinates()
     if coordinates:
         x, y = coordinates
+        for zone in no_click_zones:
+            if zone[0] <= x <= zone[2] and zone[1] <= y <= zone[3]:
+                logging.info(f"坐标 [{x}, {y}] 在禁止点击区")
+                return None
         # 进行点击操作
         pyautogui.mouseDown(x, y)
         time.sleep(0.3)
@@ -278,12 +281,14 @@ def zoom_out():
     window_center_x = window_left + window_width // 2
     window_center_y = window_top + window_height // 2
     pyautogui.moveTo(window_center_x, window_center_y)
-    pyautogui.keyDown("ctrl")
     scroll_amount = -1000
-    pyautogui.scroll(scroll_amount)
-    pyautogui.keyUp("ctrl")
-    # for i in range(30):
-    #     pyautogui.scroll(scroll_amount)
+    if window_name == 'Space Armada':
+        for i in range(30):
+            pyautogui.scroll(scroll_amount)
+    else:
+        pyautogui.keyDown("ctrl")
+        pyautogui.scroll(scroll_amount)
+        pyautogui.keyUp("ctrl")
 
 
 # 放大窗口
