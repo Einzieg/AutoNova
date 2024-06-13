@@ -15,7 +15,7 @@ console_handler.setLevel(logging.INFO)
 console_handler.setFormatter(logging.Formatter('%(asctime)s %(levelname)s %(message)s'))
 
 # 创建文件处理器
-file_handler = logging.FileHandler(filename='autonova.log', mode='a', encoding='utf-8')
+file_handler = logging.FileHandler(filename='AutoNova.log', mode='a', encoding='utf-8')
 file_handler.setLevel(logging.DEBUG)
 file_handler.setFormatter(logging.Formatter('%(asctime)s %(levelname)s %(message)s'))
 
@@ -25,25 +25,31 @@ logger.setLevel(logging.DEBUG)
 logger.addHandler(console_handler)
 logger.addHandler(file_handler)
 
-# 读取配置文件
-config = configparser.ConfigParser()
-config.read('config.ini', encoding='utf-8')
-
-window_name = config.get('Settings', 'window_name', fallback='Space Armada')
-offset = config.getfloat('Settings', 'offset', fallback=3)
-
-print(window_name, offset)
-
 
 def resource_path(relative_path):
     """获取资源文件的绝对路径"""
     try:
+        # noinspection PyProtectedMember
         base_path = sys._MEIPASS
-    except Exception:
+    except AttributeError:
         base_path = os.path.abspath(".")
 
     return os.path.join(base_path, relative_path)
 
+
+# 读取配置文件
+config_path = resource_path('config.ini')
+config = configparser.ConfigParser()
+if os.path.exists(config_path):
+    config.read(config_path, encoding='utf-8')
+else:
+    logging.error('未找到配置文件，将使用默认配置')
+
+window_name = config.get('Settings', 'window_name', fallback='Space Armada')
+offset = config.getfloat('Settings', 'offset', fallback=3)
+confidence = config.getfloat('Settings', 'confidence', fallback=0.7)
+monster_confidence = config.getfloat('Settings', 'monster_confidence', fallback=0.65)
+corpse_confidence = config.getfloat('Settings', 'corpse_confidence', fallback=0.65)
 
 # 确保有一个游戏的窗口
 window = gw.getWindowsWithTitle(window_name)
@@ -56,6 +62,7 @@ if window:
     else:
         pyautogui.hotkey('F11')
 else:
+    logger.error('未找到窗口，请检查是否已打开游戏窗口。')
     raise Exception("未找到窗口，请检查是否已打开游戏窗口。")
 
 # 加载怪物模板图像
@@ -82,7 +89,7 @@ close_icon = cv2.imread(resource_path('novaimgs/button_close.png'), cv2.IMREAD_G
 # 加载主页图标
 home_icon = cv2.imread(resource_path('novaimgs/button_home.png'), cv2.IMREAD_GRAYSCALE)
 # 加载星云图标
-galaxy_icon = cv2.imread(resource_path('novaimgs/in_nebula.png'), cv2.IMREAD_GRAYSCALE)
+# galaxy_icon = cv2.imread(resource_path('novaimgs/in_nebula.png'), cv2.IMREAD_GRAYSCALE)
 
 # 禁止点击区
 no_click_zones = [
@@ -97,14 +104,14 @@ window_left, window_top, window_width, window_height = window.left, window.top, 
 
 
 # 根据图片返回屏幕坐标
-def get_coordinate(img, confidence):
+def get_coordinate(img, believe):
     screenshot = pyautogui.screenshot(region=(window_left, window_top, window_width, window_height))
     screenshot = cv2.cvtColor(np.array(screenshot), cv2.COLOR_BGR2GRAY)
     result = cv2.matchTemplate(screenshot, img, cv2.TM_CCOEFF_NORMED)
     min_val, max_val, min_loc, max_loc = cv2.minMaxLoc(result)
     # confidence = 0.65
-    print(f"匹配结果：{max_val}")
-    if max_val >= confidence:
+    logging.info(f"匹配置信度：{max_val}")
+    if max_val >= believe:
         icon_w, icon_h = img.shape[::-1]
         icon_center_x = max_loc[0] + icon_w // 2
         icon_center_y = max_loc[1] + icon_h // 2
@@ -119,9 +126,9 @@ def get_coordinate(img, confidence):
 
 # ------------------------------------------------------------------------
 # 依次匹配怪物模板
-def find_monster_coordinates(confidence=0.65):
+def find_monster_coordinates(believe=monster_confidence):
     for template in monster_templates:
-        coords = get_coordinate(template, confidence)
+        coords = get_coordinate(template, believe)
         if coords is not None:
             return coords
     logging.info("未找到怪物<<<")
@@ -147,7 +154,7 @@ def find_monsters():
 # 点击攻击
 def attack_monsters():
     logging.info("正在匹配攻击图标>>>")
-    screen_x, screen_y = get_coordinate(attack_icon, 0.6)
+    screen_x, screen_y = get_coordinate(attack_icon, confidence)
     pyautogui.click(screen_x, screen_y)
     time.sleep(3)
 
@@ -155,7 +162,7 @@ def attack_monsters():
 # 选择全部
 def select_all():
     logging.info("正在匹配选择全部图标>>>")
-    screen_x, screen_y = get_coordinate(select_all_icon, 0.6)
+    screen_x, screen_y = get_coordinate(select_all_icon, confidence)
     pyautogui.click(screen_x, screen_y)
     time.sleep(3)
 
@@ -163,7 +170,7 @@ def select_all():
 # 确定
 def confirm():
     logging.info("正在匹配确定图标>>>")
-    screen_x, screen_y = get_coordinate(confirm_icon, 0.6)
+    screen_x, screen_y = get_coordinate(confirm_icon, confidence)
     pyautogui.click(screen_x, screen_y)
     time.sleep(3)
 
@@ -184,9 +191,9 @@ def attack_process():
 
 # ------------------------------------------------------------------------
 # 依次匹配残骸图标
-def find_debris_coordinates(confidence=0.65):
+def find_debris_coordinates(believe=corpse_confidence):
     for template in debris_templates:
-        coords = get_coordinate(template, confidence)
+        coords = get_coordinate(template, believe)
         if coords is not None:
             return coords
     logging.info("未找到残骸<<<")
@@ -202,7 +209,6 @@ def find_debris():
             if zone[0] <= x <= zone[2] and zone[1] <= y <= zone[3]:
                 logging.info(f"坐标 [{x}, {y}] 在禁止点击区")
                 return None
-        # 进行点击操作
         pyautogui.mouseDown(x, y)
         time.sleep(0.3)
         pyautogui.mouseUp(x, y)
@@ -211,7 +217,7 @@ def find_debris():
 
 def collect():
     logging.info("正在匹配采集图标>>>")
-    screen_x, screen_y = get_coordinate(collect_icon, 0.65)
+    screen_x, screen_y = get_coordinate(collect_icon, confidence)
     pyautogui.mouseDown(screen_x, screen_y)
     time.sleep(0.3)
     pyautogui.mouseUp(screen_x, screen_y)
@@ -237,7 +243,7 @@ def debris_process():
 def space_station():
     logging.info("正在匹配空间站图标>>>")
     try:
-        screen_x, screen_y = get_coordinate(space_station_icon, 0.65)
+        screen_x, screen_y = get_coordinate(space_station_icon, confidence)
         pyautogui.click(screen_x, screen_y)
         time.sleep(10)
     except TypeError:
@@ -248,7 +254,7 @@ def space_station():
 def star_system():
     logging.info("正在匹配星系图标>>>")
     try:
-        screen_x, screen_y = get_coordinate(star_system_icon, 0.65)
+        screen_x, screen_y = get_coordinate(star_system_icon, confidence)
         pyautogui.click(screen_x, screen_y)
         time.sleep(10)
     except TypeError:
@@ -258,7 +264,7 @@ def star_system():
 def close():
     logging.info("正在匹配关闭图标>>>")
     try:
-        screen_x, screen_y = get_coordinate(close_icon, 0.65)
+        screen_x, screen_y = get_coordinate(close_icon, confidence)
         pyautogui.click(screen_x, screen_y)
         time.sleep(3)
     except TypeError:
@@ -268,7 +274,7 @@ def close():
 def home():
     logging.info("正在匹配主页图标>>>")
     try:
-        screen_x, screen_y = get_coordinate(home_icon, 0.65)
+        screen_x, screen_y = get_coordinate(home_icon, confidence)
         pyautogui.click(screen_x, screen_y)
         time.sleep(3)
     except TypeError:
@@ -312,7 +318,8 @@ def reset_process():
     time.sleep(3)
 
 
-# TODO 禁止点击区域（需考虑屏幕比例） 完成
+# TODO 重复采集问题
+# TODO 计数
 # TODO 操作面板（移除命令行）（点击开始、停止、日志打印）
 # TODO 自动拉取更新
 

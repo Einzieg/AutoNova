@@ -1,19 +1,16 @@
 # -*- mode: python ; coding: utf-8 -*-
 
-block_cipher = None
-
 a = Analysis(
     ['main.py'],
     pathex=[],
-    binaries=[],
-    datas=[('novaimgs', 'novaimgs')],
+    binaries=[('config.ini', '.')],
+    datas=[('C:\\Users\\Einzieg\\PycharmProjects\\autonova\\novaimgs', 'novaimgs')],
     hiddenimports=['cv2','pygetwindow','pyautogui'],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
     excludes=[],
     noarchive=False,
-    optimize=0,
 )
 pyz = PYZ(a.pure)
 
@@ -23,8 +20,8 @@ exe = EXE(
     a.binaries,
     a.datas,
     [],
-    name='AutoNova-1.0-Beta',
-    debug=True,
+    name='AutoNova-1.0',
+    debug=False,
     bootloader_ignore_signals=False,
     strip=False,
     upx=True,
@@ -36,15 +33,4 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
-)
-
-coll = COLLECT(
-    exe,
-    a.binaries,
-    a.zipfiles,
-    a.datas,
-    strip=False,
-    upx=True,
-    upx_exclude=[],
-    name='my_app'
 )
