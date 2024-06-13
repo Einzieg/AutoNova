@@ -11,7 +11,7 @@ APP = ['main.py']
 DATA_FILES = [("novaimgs", ["novaimgs/*.png"])]
 OPTIONS = {"argv_emulation": True,
            'packages': ['pyautogui', 'pygetwindow', 'numpy', 'cv2'],
-           'includes': ['PyInstaller.hooks.hook-django.template.loaders','rubicon']
+           'includes': ['PyInstaller.hooks.hook-django.template.loaders', 'rubicon']
            }
 
 setup(
